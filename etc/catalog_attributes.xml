@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<!--
+    Copyright © 2026 Roman Pasichnyk
+    SPDX-License-Identifier: OSL-3.0 OR AFL-3.0
+-->
+<!--
+    The quote-only flag travels with the product into the cart: Magento's cart
+    APIs (GraphQL's addProductsToCart, REST) load products with the quote_item
+    attributes only, and Observer\GuardQuoteOnly reads the flag off that product.
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Catalog:etc/catalog_attributes.xsd">
+    <group name="quote_item">
+        <attribute name="zero_quote_only"/>
+    </group>
+</config>
