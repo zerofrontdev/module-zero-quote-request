@@ -43,7 +43,9 @@ class Save extends Action implements HttpPostActionInterface
             }
             $answer = trim((string) $this->getRequest()->getParam('answer'));
             if ($this->getRequest()->getParam('do') === 'decline') {
-                $this->requests->decline($id, $answer);
+                if (!$this->requests->decline($id, $answer)) {
+                    throw new LocalizedException(__('This request is already ordered.'));
+                }
                 $this->messageManager->addSuccessMessage(__('The request is declined.'));
             } else {
                 $prices = [];
@@ -56,7 +58,10 @@ class Save extends Action implements HttpPostActionInterface
                     throw new LocalizedException(__('Enter a price for at least one line.'));
                 }
                 $days = (int) $this->getRequest()->getParam('days') ?: $this->config->validDays((int) $request['store_id']);
-                $this->requests->quote($id, $prices, $answer, gmdate('Y-m-d 23:59:59', time() + $days * 86400));
+                // An order placed since the page was opened wins: the request is read again, locked.
+                if (!$this->requests->quote($id, $prices, $answer, gmdate('Y-m-d 23:59:59', time() + $days * 86400))) {
+                    throw new LocalizedException(__('This request is already ordered.'));
+                }
                 $this->mailer->quoted($this->requests->get($id));
                 $this->messageManager->addSuccessMessage(__('The quote is sent to %1.', $request['email']));
             }

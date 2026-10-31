@@ -30,7 +30,8 @@ class Index implements HttpGetActionInterface
 
     public function execute()
     {
-        $quoteRequest = $this->requests->byToken((string) $this->request->getParam('token'));
+        $tokenParam = $this->request->getParam('token');
+        $quoteRequest = $this->requests->byToken(is_scalar($tokenParam) ? (string) $tokenParam : '');
         if (!$quoteRequest) {
             return $this->forwardFactory->create()->forward('noroute');
         }

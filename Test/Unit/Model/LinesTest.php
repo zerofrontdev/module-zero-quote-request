@@ -14,29 +14,31 @@ use Magento\Catalog\Model\Product;
 use Magento\Framework\DataObject;
 use Magento\Quote\Model\Quote;
 use Magento\Quote\Model\Quote\Item;
-use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Zero\QuoteRequest\Model\Lines;
 
 class LinesTest extends TestCase
 {
-    private ConfigurationPool&MockObject $pool;
+    private ConfigurationPool&Stub $pool;
     private Lines $lines;
 
     protected function setUp(): void
     {
-        $this->pool = $this->createMock(ConfigurationPool::class);
+        $this->pool = $this->createStub(ConfigurationPool::class);
         $this->lines = new Lines($this->pool);
     }
 
     public function testACartLineKeepsItsOptionsWithoutHtmlAndTheBuyRequestWithoutPageFields(): void
     {
-        $configuration = $this->createMock(ConfigurationInterface::class);
+        $configuration = $this->createStub(ConfigurationInterface::class);
         $configuration->method('getOptions')->willReturn([
             ['label' => 'Size', 'value' => 'M'],
             ['label' => 'Engraving', 'print_value' => '<b>Anna</b>'],
         ]);
-        $this->pool->method('getByProductType')->with('simple')->willReturn($configuration);
+        $this->pool->method('getByProductType')->willReturnCallback(
+            static fn (string $type) => $type === 'simple' ? $configuration : throw new \InvalidArgumentException($type)
+        );
         $quote = $this->quoteWith($this->item(['form_key' => 'x', 'uenc' => 'y', 'qty' => 2, 'super_attribute' => [93 => 5]]));
 
         $line = $this->lines->fromCart($quote)[0];
@@ -67,7 +69,7 @@ class LinesTest extends TestCase
 
     public function testAProductFormBecomesOneLineWithAtLeastOneItemAndNoPageFields(): void
     {
-        $product = $this->createMock(Product::class);
+        $product = $this->createStub(Product::class);
         $product->method('getTypeId')->willReturn('simple');
         $product->method('getId')->willReturn(11);
         $product->method('getSku')->willReturn('HOOD-1');
@@ -92,7 +94,7 @@ class LinesTest extends TestCase
                 ]]];
             }
         };
-        $product = $this->createMock(Product::class);
+        $product = $this->createStub(Product::class);
         $product->method('getTypeId')->willReturn('configurable');
         $product->method('getTypeInstance')->willReturn($type);
 
@@ -102,9 +104,9 @@ class LinesTest extends TestCase
         self::assertSame(3.0, $line['qty']);
     }
 
-    private function item(array $buyRequest): Item&MockObject
+    private function item(array $buyRequest): Item&Stub
     {
-        $item = $this->createMock(Item::class);
+        $item = $this->createStub(Item::class);
         $item->method('getProductType')->willReturn('simple');
         $item->method('getName')->willReturn('Mona Hoodie');
         $item->method('getQty')->willReturn(2);
@@ -117,7 +119,7 @@ class LinesTest extends TestCase
 
     private function quoteWith(Item $item): Quote
     {
-        $quote = $this->createMock(Quote::class);
+        $quote = $this->createStub(Quote::class);
         $quote->method('getAllVisibleItems')->willReturn([$item]);
 
         return $quote;

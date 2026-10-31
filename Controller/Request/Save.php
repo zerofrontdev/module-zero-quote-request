@@ -61,8 +61,10 @@ class Save implements HttpPostActionInterface
                 throw new LocalizedException(__('Quote requests are off.'));
             }
             $this->captchaCheck->verify($this->request, 'zero_quote_request');
-            $name = trim((string) $this->request->getParam('name'));
-            $email = trim((string) $this->request->getParam('email'));
+            $name = $this->request->getParam('name');
+            $name = trim(is_scalar($name) ? (string) $name : '');
+            $email = $this->request->getParam('email');
+            $email = trim(is_scalar($email) ? (string) $email : '');
             if ($name === '' || !(new EmailAddress())->isValid($email)) {
                 throw new LocalizedException(__('Enter your name and a valid email.'));
             }
@@ -75,14 +77,18 @@ class Save implements HttpPostActionInterface
             if (!$lines) {
                 throw new LocalizedException(__('There is nothing to ask a quote for.'));
             }
+            [$phone, $company, $comment] = array_map(
+                static fn ($value) => trim(is_scalar($value) ? (string) $value : ''),
+                [$this->request->getParam('phone'), $this->request->getParam('company'), $this->request->getParam('comment')]
+            );
             $quoteRequest = $this->requests->create([
                 'store_id' => (int) $store->getId(),
                 'customer_id' => $this->customerSession->isLoggedIn() ? (int) $this->customerSession->getCustomerId() : null,
                 'name' => mb_substr($name, 0, 255),
                 'email' => $email,
-                'phone' => mb_substr(trim((string) $this->request->getParam('phone')), 0, 64),
-                'company' => mb_substr(trim((string) $this->request->getParam('company')), 0, 255),
-                'comment' => mb_substr(trim((string) $this->request->getParam('comment')), 0, 4000),
+                'phone' => mb_substr($phone, 0, 64),
+                'company' => mb_substr($company, 0, 255),
+                'comment' => mb_substr($comment, 0, 4000),
                 'currency' => (string) $store->getCurrentCurrencyCode(),
             ], $lines);
             $this->mailer->newRequest($quoteRequest);

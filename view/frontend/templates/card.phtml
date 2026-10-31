@@ -1,0 +1,28 @@
+<?php
+/**
+ * Copyright © 2026 Roman Pasichnyk
+ * SPDX-License-Identifier: OSL-3.0 OR AFL-3.0
+ *
+ * A product card's "Request a Price" for a Price on Request product: one block
+ * (zero.quote.card) for every card, as the badges and Quick view. A card
+ * template sets `product`, renders it and shows Add to Cart only when this
+ * gives nothing. The product is read once and dropped, so the block's own
+ * place at the end of the page renders nothing.
+ *
+ * @var \Magento\Framework\View\Element\Template $block
+ * @var \Magento\Framework\Escaper $escaper
+ * @var \Zero\QuoteRequest\ViewModel\Card $card
+ */
+$card = $block->getData('quote_card');
+$product = $block->getData('product');
+$block->unsetData('product');
+if (!$card || !$product instanceof \Magento\Catalog\Model\Product || !$card->isQuoteOnly($product)) {
+    return;
+}
+?>
+<a href="<?= $escaper->escapeUrl($card->url($product)) ?>"
+   class="action primary btn btn-neutral hover:bg-primary hover:text-primary-content zero-quote-card"
+   data-quote-card
+   title="<?= $escaper->escapeHtmlAttr(__('Request a Price')) ?>">
+    <span><?= $escaper->escapeHtml(__('Request a Price')) ?></span>
+</a>

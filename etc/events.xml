@@ -10,7 +10,15 @@
     <event name="sales_quote_collect_totals_before">
         <observer name="zero_quote_request_qty" instance="Zero\QuoteRequest\Observer\KeepQuotedQty"/>
     </event>
-    <event name="sales_model_service_quote_submit_success">
-        <observer name="zero_quote_request_ordered" instance="Zero\QuoteRequest\Observer\MarkOrdered"/>
+    <!-- Before anything is spent on the order: its quotes can still be ordered (the claim is at place()). -->
+    <event name="checkout_submit_before">
+        <observer name="zero_quote_request_check" instance="Zero\QuoteRequest\Observer\CheckQuoteBeforeSubmit"/>
+    </event>
+    <!-- The order did not consume its quote: cancelled, or its cart restored while unpaid. -->
+    <event name="order_cancel_after">
+        <observer name="zero_quote_request_reopen" instance="Zero\QuoteRequest\Observer\ReopenOnCancel"/>
+    </event>
+    <event name="zero_checkout_quote_restored">
+        <observer name="zero_quote_request_restored" instance="Zero\QuoteRequest\Observer\ReleaseOnQuoteRestored"/>
     </event>
 </config>

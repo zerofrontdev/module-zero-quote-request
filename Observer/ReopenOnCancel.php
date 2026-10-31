@@ -13,9 +13,10 @@ use Magento\Framework\Event\ObserverInterface;
 use Zero\QuoteRequest\Model\Requests;
 
 /**
- * An order from an accepted quote marks the request ordered.
+ * order_cancel_after: a cancelled order did not consume its quote, so the
+ * request it claimed is quoted again (if not past its date).
  */
-class MarkOrdered implements ObserverInterface
+class ReopenOnCancel implements ObserverInterface
 {
     public function __construct(private readonly Requests $requests)
     {
@@ -23,10 +24,9 @@ class MarkOrdered implements ObserverInterface
 
     public function execute(Observer $observer): void
     {
-        $requestId = (int) $observer->getEvent()->getQuote()?->getData('zero_quote_request_id');
-        $order = $observer->getEvent()->getOrder();
-        if ($requestId && $order) {
-            $this->requests->markOrdered($requestId, (string) $order->getIncrementId());
+        $order = $observer->getEvent()->getData('order');
+        if ($order) {
+            $this->requests->reopen((string) $order->getIncrementId());
         }
     }
 }

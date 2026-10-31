@@ -17,7 +17,8 @@ use Magento\Quote\Model\Quote;
 /**
  * Accepting a quote: the cart becomes its lines, each at its quoted price and
  * quantity (they stay so), and the cart remembers the request (the order
- * marks it ordered).
+ * placed from it claims it: Plugin\ClaimQuoteOnPlace). Only in the currency
+ * the quote was priced in.
  */
 class Accept
 {
@@ -45,6 +46,11 @@ class Accept
         $quote ??= $this->checkoutSession->getQuote();
         if ((int) $request['store_id'] !== (int) $quote->getStoreId()) {
             throw new LocalizedException(__('Open this quote in the store it was made for.'));
+        }
+        // The prices are in the currency it was asked in; custom_price is taken in the cart's.
+        $currency = (string) ($request['currency'] ?? '');
+        if ($currency !== '' && $currency !== (string) $quote->getStore()->getCurrentCurrencyCode()) {
+            throw new LocalizedException(__('This quote is in %1. Switch the store\'s currency to %1, then accept it.', $currency));
         }
         foreach ($quote->getAllVisibleItems() as $item) {
             $quote->removeItem($item->getId());

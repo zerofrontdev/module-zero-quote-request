@@ -34,6 +34,9 @@
         <index referenceId="ZERO_QUOTE_REQUEST_STATUS" indexType="btree">
             <column name="status"/>
         </index>
+        <index referenceId="ZERO_QUOTE_REQUEST_ORDER_INCREMENT_ID" indexType="btree">
+            <column name="order_increment_id"/>
+        </index>
     </table>
     <table name="zero_quote_request_item" resource="default" engine="innodb" comment="Zero Quote Request Items">
         <column xsi:type="int" name="item_id" unsigned="true" nullable="false" identity="true" comment="Item ID"/>

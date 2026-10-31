@@ -20,7 +20,8 @@
         },
         "index": {
             "ZERO_QUOTE_REQUEST_CUSTOMER_ID": true,
-            "ZERO_QUOTE_REQUEST_STATUS": true
+            "ZERO_QUOTE_REQUEST_STATUS": true,
+            "ZERO_QUOTE_REQUEST_ORDER_INCREMENT_ID": true
         },
         "constraint": {
             "PRIMARY": true,

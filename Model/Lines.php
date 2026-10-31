@@ -66,7 +66,9 @@ class Lines
         $options = [];
         if ($product->getTypeId() === 'configurable' && !empty($request['super_attribute']) && is_array($request['super_attribute'])) {
             foreach ($product->getTypeInstance()->getConfigurableAttributesAsArray($product) as $attribute) {
-                $chosen = (string) ($request['super_attribute'][$attribute['attribute_id']] ?? '');
+                $chosen = $request['super_attribute'][$attribute['attribute_id']] ?? '';
+                // An array (super_attribute[93][]=x) counts as not chosen.
+                $chosen = is_scalar($chosen) ? (string) $chosen : '';
                 foreach ($attribute['values'] as $value) {
                     if ((string) $value['value_index'] === $chosen) {
                         $options[] = ['label' => (string) $attribute['label'], 'value' => (string) $value['label']];

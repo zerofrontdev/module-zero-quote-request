@@ -33,7 +33,8 @@ class Accept implements HttpPostActionInterface
 
     public function execute()
     {
-        $token = (string) $this->request->getParam('token');
+        $token = $this->request->getParam('token');
+        $token = is_scalar($token) ? (string) $token : '';
         $quoteRequest = $this->requests->byToken($token);
         try {
             if (!$quoteRequest) {

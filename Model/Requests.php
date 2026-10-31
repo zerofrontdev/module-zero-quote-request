@@ -13,7 +13,9 @@ use Magento\Framework\Event\ManagerInterface as EventManager;
 
 /**
  * Quote requests and their lines. Statuses: new (asked), quoted (answered
- * with prices, valid until expires_at), ordered, declined.
+ * with prices, valid until expires_at), ordered (claimed by the order placed
+ * from it; quoted again if that order is cancelled or its cart restored
+ * unpaid), declined.
  */
 class Requests
 {
@@ -27,7 +29,7 @@ class Requests
 
     public function __construct(
         private readonly ResourceConnection $resource,
-        private readonly ?EventManager $eventManager = null
+        private readonly EventManager $eventManager
     ) {
     }
 
@@ -64,7 +66,7 @@ class Requests
         }
         $row = $this->get($id);
         // Zero_Webhooks listens (quote_request.created).
-        $this->eventManager?->dispatch('zero_quote_request_created', ['request' => $row, 'items' => $this->items($id), 'store_id' => (int) $row['store_id']]);
+        $this->eventManager->dispatch('zero_quote_request_created', ['request' => $row, 'items' => $this->items($id), 'store_id' => (int) $row['store_id']]);
         return $row;
     }
 
@@ -139,42 +141,107 @@ class Requests
 
     /**
      * The store's answer: a price per line (unit, in the request's
-     * currency), a note, valid until.
+     * currency), a note, valid until. False (nothing changed) when the
+     * request is gone or already ordered: the row is read FOR UPDATE, so an
+     * order placed at the same moment can't be answered over.
      *
      * @param array<int, float> $prices By item id
      */
-    public function quote(int $requestId, array $prices, string $answer, string $expiresAtUtc): void
+    public function quote(int $requestId, array $prices, string $answer, string $expiresAtUtc): bool
     {
-        $connection = $this->resource->getConnection();
-        foreach ($prices as $itemId => $price) {
+        return $this->answer($requestId, function ($connection) use ($requestId, $prices, $answer, $expiresAtUtc): void {
+            foreach ($prices as $itemId => $price) {
+                $connection->update(
+                    $this->resource->getTableName(self::ITEMS),
+                    ['quoted_price' => round(max(0.0, (float) $price), 4)],
+                    ['item_id = ?' => (int) $itemId, 'request_id = ?' => $requestId]
+                );
+            }
+            $connection->update($this->resource->getTableName(self::TABLE), [
+                'status' => self::QUOTED,
+                'answer' => $answer,
+                'expires_at' => $expiresAtUtc,
+            ], ['request_id = ?' => $requestId]);
+        });
+    }
+
+    /** False (nothing changed) when the request is gone or already ordered. */
+    public function decline(int $requestId, string $answer): bool
+    {
+        return $this->answer($requestId, function ($connection) use ($requestId, $answer): void {
             $connection->update(
-                $this->resource->getTableName(self::ITEMS),
-                ['quoted_price' => round(max(0.0, (float) $price), 4)],
-                ['item_id = ?' => (int) $itemId, 'request_id = ?' => $requestId]
+                $this->resource->getTableName(self::TABLE),
+                ['status' => self::DECLINED, 'answer' => $answer],
+                ['request_id = ?' => $requestId]
             );
-        }
-        $connection->update($this->resource->getTableName(self::TABLE), [
-            'status' => self::QUOTED,
-            'answer' => $answer,
-            'expires_at' => $expiresAtUtc,
-        ], ['request_id = ?' => $requestId]);
+        });
     }
 
-    public function decline(int $requestId, string $answer): void
-    {
-        $this->resource->getConnection()->update(
-            $this->resource->getTableName(self::TABLE),
-            ['status' => self::DECLINED, 'answer' => $answer],
-            ['request_id = ?' => $requestId]
-        );
-    }
-
+    /**
+     * Kept for callers outside the module; orders claim their quote with claim().
+     */
     public function markOrdered(int $requestId, string $orderIncrementId): void
     {
         $this->resource->getConnection()->update(
             $this->resource->getTableName(self::TABLE),
             ['status' => self::ORDERED, 'order_increment_id' => $orderIncrementId],
             ['request_id = ?' => $requestId, 'status = ?' => self::QUOTED]
+        );
+    }
+
+    /**
+     * The order being placed takes the quote: one conditional UPDATE, so of
+     * two carts placing at once exactly one wins. False when it is no longer
+     * quoted (ordered, declined, re-answered away) or past its date.
+     */
+    public function claim(int $requestId, string $orderIncrementId): bool
+    {
+        if ($orderIncrementId === '') {
+            return false;
+        }
+
+        return $this->resource->getConnection()->update(
+            $this->resource->getTableName(self::TABLE),
+            ['status' => self::ORDERED, 'order_increment_id' => $orderIncrementId],
+            [
+                'request_id = ?' => $requestId,
+                'status = ?' => self::QUOTED,
+                '(expires_at IS NULL OR expires_at > ?)' => gmdate('Y-m-d H:i:s'),
+            ]
+        ) > 0;
+    }
+
+    /** Undoes this order's claim (placing it failed); another order's claim is left alone. */
+    public function release(int $requestId, string $orderIncrementId): void
+    {
+        if ($orderIncrementId === '') {
+            return;
+        }
+        $this->resource->getConnection()->update(
+            $this->resource->getTableName(self::TABLE),
+            ['status' => self::QUOTED, 'order_increment_id' => null],
+            ['request_id = ?' => $requestId, 'status = ?' => self::ORDERED, 'order_increment_id = ?' => $orderIncrementId]
+        );
+    }
+
+    /**
+     * The order did not consume its quote after all (cancelled, or its cart
+     * restored while unpaid): quoted again, if not past its date. Only the
+     * requests this very order claimed; safe to repeat.
+     */
+    public function reopen(string $orderIncrementId): void
+    {
+        if ($orderIncrementId === '') {
+            return;
+        }
+        $this->resource->getConnection()->update(
+            $this->resource->getTableName(self::TABLE),
+            ['status' => self::QUOTED, 'order_increment_id' => null],
+            [
+                'order_increment_id = ?' => $orderIncrementId,
+                'status = ?' => self::ORDERED,
+                '(expires_at IS NULL OR expires_at > ?)' => gmdate('Y-m-d H:i:s'),
+            ]
         );
     }
 
@@ -190,5 +257,32 @@ class Requests
     public static function number(array $request): string
     {
         return sprintf('Q%06d', (int) $request['request_id']);
+    }
+
+    /**
+     * Runs an admin answer on the row read FOR UPDATE; false (committed, nothing changed) when gone or ordered.
+     */
+    private function answer(int $requestId, callable $write): bool
+    {
+        $connection = $this->resource->getConnection();
+        $connection->beginTransaction();
+        try {
+            $status = $connection->fetchOne(
+                $connection->select()->from($this->resource->getTableName(self::TABLE), ['status'])
+                    ->where('request_id = ?', $requestId)->forUpdate(true)
+            );
+            if ($status === false || $status === null || $status === self::ORDERED) {
+                $connection->commit();
+
+                return false;
+            }
+            $write($connection);
+            $connection->commit();
+
+            return true;
+        } catch (\Throwable $e) {
+            $connection->rollBack();
+            throw $e;
+        }
     }
 }

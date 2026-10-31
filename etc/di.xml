@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<!--
+    Copyright © 2026 Roman Pasichnyk
+    SPDX-License-Identifier: OSL-3.0 OR AFL-3.0
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+    <!-- An accepted quote is claimed once, when its order is placed (every channel); released if placing fails. Outside Zero_NetTerms (20). -->
+    <type name="Magento\Sales\Api\OrderManagementInterface">
+        <plugin name="zero_quote_request_claim" type="Zero\QuoteRequest\Plugin\ClaimQuoteOnPlace" sortOrder="10"/>
+    </type>
+</config>

@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<!--
+    Copyright © 2026 Roman Pasichnyk
+    SPDX-License-Identifier: OSL-3.0 OR AFL-3.0
+
+    The product cards' "Request a Price" block: the Zero theme's card
+    templates (category/search list, related/upsell/cross-sell, widgets,
+    compare) render it per card in place of Add to Cart, as the badges.
+-->
+<page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
+    <body>
+        <referenceContainer name="before.body.end">
+            <block class="Magento\Framework\View\Element\Template" name="zero.quote.card" template="Zero_QuoteRequest::card.phtml">
+                <arguments>
+                    <argument name="quote_card" xsi:type="object">Zero\QuoteRequest\ViewModel\Card</argument>
+                </arguments>
+            </block>
+        </referenceContainer>
+    </body>
+</page>

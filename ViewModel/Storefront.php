@@ -65,7 +65,8 @@ class Storefront implements ArgumentInterface
 
     public function current(): ?array
     {
-        return $this->requests->byToken((string) $this->request->getParam('token'));
+        $tokenParam = $this->request->getParam('token');
+        return $this->requests->byToken(is_scalar($tokenParam) ? (string) $tokenParam : '');
     }
 
     public function items(array $request): array
