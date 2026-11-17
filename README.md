@@ -94,6 +94,8 @@ Stores > Configuration where it has a setting, or back up first:
 dropped (`--data-restore=1` puts it back). Deleting the module's code instead
 leaves the tables in place.
 
+AI Assistant tools for this module: the bridge module `Zero_QuoteRequestAiAssistant` (needs Zero_AiAssistant too).
+
 What changed in each release: [CHANGELOG.md](CHANGELOG.md).
 
 ## License
